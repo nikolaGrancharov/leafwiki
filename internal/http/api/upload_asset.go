@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	auth_middleware "github.com/perber/wiki/internal/http/middleware/auth"
 	"github.com/perber/wiki/internal/wiki"
 )
 
@@ -32,7 +33,12 @@ func UploadAssetHandler(w *wiki.Wiki) gin.HandlerFunc {
 			}
 		}()
 
-		url, err := w.UploadAsset(pageID, file, header.Filename)
+		user := auth_middleware.MustGetUser(c)
+		if user == nil {
+			return
+		}
+
+		url, err := w.UploadAsset(user.ID, pageID, file, header.Filename)
 		if err != nil {
 			respondWithError(c, err)
 			return
