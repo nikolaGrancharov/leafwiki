@@ -51,7 +51,7 @@ export function useToolbarActions({
       {
         id: 'page-history',
         label: `${itemLabel} History`,
-        hotkey: '',
+        hotkey: 'Ctrl+Shift+H',
         icon: <History size={18} />,
         variant: 'outline',
         action: showHistory,
@@ -101,14 +101,23 @@ export function useToolbarActions({
       action: deletePage,
     }
 
+    const historyHotkey: HotKeyDefinition = {
+      keyCombo: 'Mod+Shift+H',
+      enabled: true,
+      mode: ['view'],
+      action: showHistory,
+    }
+
     registerHotkey(editHotkey)
     registerHotkey(copyHotkey)
     registerHotkey(deleteHotkey)
+    registerHotkey(historyHotkey)
 
     return () => {
       unregisterHotkey(editHotkey.keyCombo)
       unregisterHotkey(copyHotkey.keyCombo)
       unregisterHotkey(deleteHotkey.keyCombo)
+      unregisterHotkey(historyHotkey.keyCombo)
     }
   }, [
     appMode,

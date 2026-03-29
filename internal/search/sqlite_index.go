@@ -11,6 +11,7 @@ import (
 
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/perber/wiki/internal/core/markdown"
+	"github.com/perber/wiki/internal/core/tree"
 	"github.com/russross/blackfriday/v2"
 	_ "modernc.org/sqlite" // Import SQLite driver
 )
@@ -131,6 +132,7 @@ func (s *SQLiteIndex) ensureSchema() error {
 				path UNINDEXED,
 				filepath UNINDEXED,
 				pageID,
+				kind UNINDEXED,
 				title,
 				headings,
 				content,
@@ -160,7 +162,7 @@ func (s *SQLiteIndex) Close() error {
 	return nil
 }
 
-func (s *SQLiteIndex) IndexPage(path string, filePath string, pageID string, title string, raw string) error {
+func (s *SQLiteIndex) IndexPage(path string, filePath string, pageID string, title string, kind tree.NodeKind, raw string) error {
 	_, content, _, err := markdown.ParseFrontmatter(raw)
 	if err != nil {
 		return err
@@ -180,9 +182,9 @@ func (s *SQLiteIndex) IndexPage(path string, filePath string, pageID string, tit
 		}
 
 		_, err = db.Exec(`
-		INSERT INTO pages (path, filepath, pageID, title, headings, content)
-		VALUES (?, ?, ?, ?, ?, ?);
-	`, path, filePath, pageID, title, headings, sanitizedBody)
+		INSERT INTO pages (path, filepath, pageID, kind, title, headings, content)
+		VALUES (?, ?, ?, ?, ?, ?, ?);
+	`, path, filePath, pageID, string(kind), title, headings, sanitizedBody)
 
 		return err
 	})
@@ -239,12 +241,14 @@ func (s *SQLiteIndex) Search(query string, offset, limit int) (*SearchResult, er
 		SELECT 
 			pageID,
 			path,
-			highlight(pages, 3, '<b>', '</b>') AS highlighted_title,
-			snippet(pages, 5, '<b>', '</b>', '...', 16) AS excerpt,
+			kind,
+			highlight(pages, 4, '<b>', '</b>') AS highlighted_title,
+			snippet(pages, 6, '<b>', '</b>', '...', 16) AS excerpt,
 			bm25(pages,
 				0.0,  -- path
 				0.0,  -- filepath
 				0.0,  -- pageID
+				0.0,  -- kind
 				20.0, -- title
 				5.0,   -- headings
 				1.0    -- content
@@ -270,7 +274,7 @@ func (s *SQLiteIndex) Search(query string, offset, limit int) (*SearchResult, er
 			var r SearchResultItem
 			var bm25Score float64
 
-			if err := rows.Scan(&r.PageID, &r.Path, &r.Title, &r.Excerpt, &bm25Score); err != nil {
+			if err := rows.Scan(&r.PageID, &r.Path, &r.Kind, &r.Title, &r.Excerpt, &bm25Score); err != nil {
 				return err
 			}
 
